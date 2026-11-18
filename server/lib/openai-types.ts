@@ -1,5 +1,5 @@
 // Minimal subset of the OpenAI chat-completions wire format that we need to
-// speak to clients (Hermes points its `provider: custom` at us).
+// speak to OpenAI-compatible clients.
 
 export interface OpenAIToolFunction {
   name: string;

@@ -18,23 +18,6 @@ export default defineEventHandler(async (event) => {
     return { error: { message: "messages[] required" } };
   }
 
-  // DEBUG: dump the exact request so failures can be replayed verbatim.
-  try {
-    const dir = process.env.STATE_DIRECTORY;
-    if (dir) {
-      const { writeFileSync } = await import("node:fs");
-      const raw = JSON.stringify(body);
-      writeFileSync(`${dir}/last-request.json`, raw);
-      // Preserve tool-bearing requests separately — Hermes fires trailing
-      // tools=0 aux calls that otherwise overwrite the failing main turn.
-      if (Array.isArray(body.tools) && body.tools.length > 0) {
-        writeFileSync(`${dir}/last-tool-request.json`, raw);
-      }
-    }
-  } catch {
-    /* best effort */
-  }
-
   const { boundary, sessionId, model } = await processChatCompletion(body);
 
   if (boundary.kind === "error") {

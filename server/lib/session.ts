@@ -6,10 +6,14 @@ import {
   type SDKUserMessage,
   type Query,
 } from "@anthropic-ai/claude-agent-sdk";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { propsToShape } from "./json-schema-to-zod";
 import type { OpenAITool } from "./openai-types";
 
-const MCP_SERVER = "hermes";
+const MCP_SERVER = "client";
+const SANDBOX_CWD = mkdtempSync(join(tmpdir(), "claude-sub-proxy-"));
 
 /** A tool call Claude made, suspended until the client returns a result. */
 interface CapturedCall {
@@ -72,8 +76,19 @@ export class Session {
       // a Claude Code project agent.
       settingSources: [],
       env: args.env,
-      // Auto-approve everything; the *client* is the real gatekeeper.
-      canUseTool: async (_name, input) => ({ behavior: "allow", updatedInput: input }),
+      // SECURITY: disable every built-in Claude Code tool (Bash, Read, Write,
+      // Edit, WebFetch, Task...). `allowedTools` only auto-approves; it does
+      // not restrict. Without this, the model can run commands on the host.
+      tools: [],
+      disallowedTools: ["Bash", "BashOutput", "KillShell", "Read", "Write", "Edit", "NotebookEdit",
+        "Glob", "Grep", "WebFetch", "WebSearch", "Task", "TodoWrite"],
+      // Isolated, empty working directory.
+      cwd: SANDBOX_CWD,
+      // Only the caller's passthrough tools may run; deny everything else.
+      canUseTool: async (name, input) =>
+        name.startsWith(`mcp__${MCP_SERVER}__`)
+          ? { behavior: "allow", updatedInput: input }
+          : { behavior: "deny", message: `tool ${name} is disabled by proxy` },
       // Surface the underlying CLI/API error (the SDK only hands us a coarse
       // label like "unknown"); without this the real cause is invisible.
       stderr: (data) => process.stderr.write(`[claude-cli] ${data}`),

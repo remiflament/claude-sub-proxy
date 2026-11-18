@@ -2,7 +2,7 @@ import { z, type ZodTypeAny, type ZodRawShape } from "zod";
 
 // Best-effort JSON-Schema -> Zod conversion. The Claude Agent SDK's `tool()`
 // helper wants a ZodRawShape (it serialises it back to JSON Schema for the
-// model via zod-to-json-schema). Clients like Hermes hand us tool parameters
+// model via zod-to-json-schema). Clients hand us tool parameters
 // as JSON Schema, so we translate the common subset and preserve descriptions
 // (which is what actually steers the model's tool calls). Anything exotic
 // falls back to z.any(), so we never reject a tool — worst case the model sees
@@ -60,7 +60,7 @@ function withMeta(zod: ZodTypeAny, s: Record<string, any>): ZodTypeAny {
 
 /** Convert a JSON-Schema object's `properties` into a Zod raw shape. */
 export function propsToShape(schema: Record<string, any> | undefined): ZodRawShape {
-  const shape: ZodRawShape = {};
+  const shape: Record<string, ZodTypeAny> = {};
   if (!schema || typeof schema !== "object") return shape;
   const props = schema.properties ?? {};
   const required: string[] = Array.isArray(schema.required) ? schema.required : [];
